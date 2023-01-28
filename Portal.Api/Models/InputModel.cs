@@ -1,9 +1,17 @@
-﻿using Portal.Api.Base;
+﻿namespace Portal.Api.Models;
 
-namespace Portal.Api.Models;
-
-public class InputModel : IApiResult<string>
+public class InputModel 
 {
+    public InputModel()
+    {
+        
+    }
+    public InputModel(string? firstName, string? surName)
+    {
+        FirstName = firstName;
+        SurName = surName;
+    }
+
     public string? FirstName { get; set; }
     public string? SurName { get; set; }
 

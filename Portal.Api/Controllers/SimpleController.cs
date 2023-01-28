@@ -1,18 +1,17 @@
+global using Portal.Api.Models;
 using Microsoft.AspNetCore.Mvc;
-using Portal.Api.Base;
-using Portal.Api.Models;
+using Portal.Api.CQRS.Queries;
 
 namespace Portal.Api.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("[controller]/[action]")]
 public class SimpleController : BaseController
 {
-    public SimpleController(IApiProcessor processor) : base(processor)
-    {
-    }
+    [HttpGet]
+    public async Task<IActionResult> Get() => await Execute(new InputModelQuery());
 
-
-    [HttpGet("[action]")]
-    public async Task<IActionResult> Get([FromQuery]InputModel model) => await Execute(model);
+    [HttpPost]
+    public async Task<IActionResult> Send(InputModelQuery query) => await Execute(query);
 }
+

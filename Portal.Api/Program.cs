@@ -1,19 +1,13 @@
-using Portal.Api.Base;
-using SimpleInjector;
+global using MediatR;
+using Portal.Api.Behaviors;
+using Portal.Api.CQRS.Queries;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
-Container container = new();
-
 const string myCorsPolicy = "MyCorsPolicy";
 
 // Add services to the container.
 
-builder.Services.AddScoped<IApiProcessor, ApiProcessor>();
-
-builder.Services.AddSimpleInjector(container, options =>
-{
-    options.AddAspNetCore();
-});
 
 builder.Services.AddCors(options =>
 {
@@ -27,6 +21,13 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddMediatR(typeof(InputModelQuery).Assembly);
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>),typeof(ValidationBehavior<,>));
+
+builder.Services.AddMemoryCache();
+
+builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -35,21 +36,16 @@ builder.Services.AddSwaggerGen(options =>
     options.DocInclusionPredicate((name, api) => true);
 });
 
-initializeContainer();
-
-void initializeContainer()
-{
-    container.Register(typeof(IApiHandler<,>), typeof(IApiHandler<,>).Assembly);
-}
 
 var app = builder.Build();
 
-app.Services.UseSimpleInjector(container);
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseExceptionMiddleware();
 
 app.UseCors(myCorsPolicy);
 
@@ -58,7 +54,5 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
-
-container.Verify();
 
 app.Run();

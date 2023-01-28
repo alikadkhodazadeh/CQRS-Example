@@ -1,18 +1,42 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Portal.Api.Base;
+using Microsoft.Extensions.Caching.Memory;
+using Portal.Api.CQRS.Queries;
+using Portal.Api.Helpers;
+using System.Reflection;
 
 namespace Portal.Api.Controllers;
 
-public abstract class BaseController : Controller
+public abstract class BaseController : ControllerBase
 {
-    private readonly IApiProcessor _processor;
+    private IMediator? _mediator;
+    private IMemoryCache? _cache;
 
-    public BaseController(IApiProcessor processor)
-    {
-        _processor = processor;
-    }
+    protected IMediator Mediator => _mediator ??= HttpContext.RequestServices.GetRequiredService<IMediator>();
+    protected IMemoryCache Cache => _cache ??= HttpContext.RequestServices.GetRequiredService<IMemoryCache>();
 
     [NonAction]
-    public async Task<IActionResult> Execute<TResponse>([FromBody] IApiResult<TResponse> model)
-        => Ok(new { data = await _processor.Process(model), isSuccess = true });
+    public async Task<IActionResult> Execute<TResponse>(IRequest<TResponse> request)
+    {
+        return Ok(new
+        {
+            data = await Mediator.Send(request),
+            isSuccess = true
+        });
+    }
+
+    private Tuple<bool,string> GetCachedRequest<TResponse>(IRequest<TResponse> request)
+    {
+        var cachedRequests = Cache.GetOrCreate("CachedRequests", _ =>
+        {
+            return typeof(InputModelQuery).Assembly.GetTypes()
+                .Where(x => x.GetCustomAttribute<CachedAttribute>(true) is not null)
+                .ToList();
+        });
+
+        var res = cachedRequests?.SingleOrDefault(r => r == request.GetType());
+
+        if (res is not null)
+            return new(true, CacheKeyManager.GetCasheKey(request.GetType().Name));
+        return new(false, string.Empty);
+    }
 }
